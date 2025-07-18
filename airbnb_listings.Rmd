@@ -1,0 +1,285 @@
+---
+title: "Airbnb Listings"
+author: "Kelvin Ziro"
+date: "2025-07-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+![](img/header-Airbnbemoji.jpg)
+
+# Airbnb Listings
+
+This datasets consists of six original files with Airbnb rental listings of six cities: Austin, Bangkok, Buenos Aires, Cape Town, Istanbul, and Melbourne. The source of the data is [InsideAirbnb](http://insideairbnb.com). The data dictionary is as defined as follows:
+
+## Data Dictionary
+
+| Column                            | Explanation                                                                                                                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                                | Airbnb's unique identifier for the listing                                                                                                                                                         |
+| name                              |                                                                                                                                                                                                    |
+| host\_id                          |                                                                                                                                                                                                    |
+| host\_name                        |                                                                                                                                                                                                    |
+| neighbourhood\_group              | The neighbourhood group as geocoded using the latitude and longitude against neighborhoods as defined by open or public digital shapefiles.                                                        |
+| neighbourhood                     | The neighbourhood as geocoded using the latitude and longitude against neighborhoods as defined by open or public digital shapefiles.                                                              |
+| latitude                          | Uses the World Geodetic System (WGS84) projection for latitude and longitude.                                                                                                                      |
+| longitude                         | Uses the World Geodetic System (WGS84) projection for latitude and longitude.                                                                                                                      |
+| room\_type                        |                                                                                                                                                                                                    |
+| price                             | daily price in local currency. Note, $ sign may be used despite locale                                                                                                                             |
+| minimum\_nights                   | minimum number of night stay for the listing (calendar rules may be different)                                                                                                                     |
+| number\_of\_reviews               | The number of reviews the listing has                                                                                                                                                              |
+| last\_review                      | The date of the last/newest review                                                                                                                                                                 |
+| calculated\_host\_listings\_count | The number of listings the host has in the current scrape, in the city/region geography.                                                                                                           |
+| availability\_365                 | avaliability\_x. The availability of the listing x days in the future as determined by the calendar. Note a listing may be available because it has been booked by a guest or blocked by the host. |
+| number\_of\_reviews\_ltm          | The number of reviews the listing has (in the last 12 months)                                                                                                                                      |
+| license                           |                                                                                                                                                                                                    |
+
+```{r}
+# Load necessary packages
+suppressPackageStartupMessages(library(tidyverse))
+
+# Load datasets
+austin <- read_csv("data/listings_austin.csv", show_col_types=FALSE)
+bangkok <- read_csv("data/listings_bangkok.csv", show_col_types=FALSE)
+buenos_aires <- read_csv("data/listings_buenos_aires.csv", show_col_types=FALSE)
+cape_town <- read_csv("data/listings_cape_town.csv", show_col_types=FALSE)
+istanbul <- read_csv("data/listings_istanbul.csv", show_col_types=FALSE)
+melbourne <- read_csv("data/listings_melbourne.csv", show_col_types=FALSE)
+```
+
+```{r}
+# Add columns labeling the cities in the respective datasets
+austin$city <- "Austin"
+bangkok$city <- "Bangkok"
+buenos_aires$city <- "Buenos Aires"
+cape_town$city <- "Cape Town"
+istanbul$city <- "Istanbul"
+melbourne$city <- "Melbourne"
+
+# Combine the datasets together to compare data between cities
+austin$neighbourhood <- as.character(austin$neighbourhood)
+listings <- bind_rows(
+  austin, bangkok, buenos_aires, cape_town, istanbul, melbourne)
+```
+
+## Initial Data Inspection
+
+```{r}
+glimpse(listings)
+```
+We have a combined dataset containing `103,817` airbnb listings spanning `6` cities.
+
+```{r}
+# Plot the distribution of prices in austin
+ggplot(listings, aes(x = price)) +
+  geom_histogram(bins=50) +
+  ggtitle("Distribution of listing prices across")
+```
+
+We can see a distribution of *free* listings to very expensive ones costing ~*$1,000,000*. Upon some light digging on the internet, we discovered that [Airbnb.org](https://www.airbnb.com/help/article/3600) does offer *free* but temporary housing solutions for emergencies/humanitarian crisis. Another cause could be due to listings on a third-party platform, [hostshare](https://www.hostshare.co/) that allows Airbnb hosts to host each other. Another reason could be plain old data entry errors, hence to be safe, we'll just exclude those observations from the data and focus on the listings with a price tag on them.
+
+We also notice that the distribution of prices in our dataset is massively **skewed** towards the right hinting at outliers (very expensive listings). However, an Airbnb listed ~*$1,000,000* is a bit of a stretch. Let's break this down by `room_type` for further investigations.
+
+
+```{r}
+# Filter out free listings from the dataset
+listings <- listings %>%
+  filter(price > 0)
+
+# Plot the distribution of prices in austin per room_type
+ggplot(listings, aes(x = price, y = room_type)) +
+  geom_boxplot() +
+  facet_wrap(~ city) +
+  ggtitle('Price distribution by room type per city')
+```
+
+The prices distributions look disproportionately large in the visualization largely due to the fact that we did not adjust the prices to a uniform currency. Recall from the data dictionary that the price column represents the local currencies. To get a more accurate scale in all other cities save from `austin`, we'll convert the currencies to USD and then compare the cities to each other again.
+
+As per Google:
+
+- 1 Thai Baht = 0.031 USD `bangkok`
+- 1 Argentino peso = 0.00079 USD `buenos aires`
+- 1 South African Rand = 0.056 USD `cape town`
+- 1 Turkish lira = 0.025 USD `istanbul`
+- 1 Australian dollar = 0.65 USD `Melbourne
+
+```{r}
+# Convert the currencies to adjust the prices on a uniform scale
+listings <- listings %>%
+  mutate(price_USD = ifelse(city == "Bangkok", price * 0.031, # convert Bangkok prices to USD
+                            ifelse(city == "Buenos Aires", price * 0.00079, # convert buenos aires prices to USD
+                                   ifelse(city =="Cape Town", price * 0.056, # convert cape town prices to USD
+                                          ifelse(city == "Istanbul", price * 0.025, # convert istanbul prices to USD
+                                                 ifelse(city == "Melbourne", price * 0.65, price)))))) # convert melbourne prices to USD
+
+# Plot the distribution of prices in austin per room_type
+ggplot(listings, aes(x = price_USD, y = room_type)) +
+  geom_boxplot() +
+  facet_wrap(~ city) +
+  ggtitle('Price distribution by room type per city')
+```
+
+We notice a particular pattern from the visualization above: 
+- **Buenos Aires** has the lowest price listings compared to other cities which is not what the initial visualization had shown us. 
+- We also notice that **Austin** and **Melbourne** have quite a number of pricy listings compared to the other cities. 
+- In general, **Entire home/apt** and **Private rooms** types of listings command higher prices.
+
+Let's investigate the listings in the outlier territory
+
+```{r}
+# Compute the upper and lower thresholds (using the 1.5 * iqr rule)
+lower_quartile <- quantile(listings$price_USD, 0.25)
+upper_quartile <- quantile(listings$price_USD, 0.75)
+iqr <- upper_quartile - lower_quartile
+lower_threshold <- lower_quartile - 1.5 * iqr
+upper_threshold <- upper_quartile + 1.5 * iqr
+
+# filter listings with outlier prices
+outlier_listings <- listings %>%
+  filter(price_USD < lower_threshold | price_USD > upper_threshold)
+
+# Plot the spread of listings with outlier prices
+ggplot(outlier_listings, aes(x = price_USD, y = room_type)) +
+  geom_boxplot() +
+  facet_wrap(~ city) +
+  ggtitle("Distribution of listings with outlier prices")
+```
+
+We observe similar behaviour for listings in the outlier range with outliers among outliers. In terms of room types, Shared rooms are the cheapest type of listings while **Entire home/apt** and **Private room** listings can still get really expensive (*even in the outlier region*).
+
+## Minimum stays
+
+Let's check whether or not there's a correlation between `minimum_nights`, `price` and `room_type` variables
+
+```{r}
+# Create a scatter plot
+ggplot(listings, aes(x = minimum_nights, y = price_USD, color=room_type)) +
+  geom_point() +
+  scale_y_log10() + # we put the price_USD on a logarthmic scale for easy comparison
+  ggtitle("Price vs. Minimum nights") 
+```
+
+The data clearly reveals that there's no linear correlation between the two variables. However it is notable that some listings of type `Entire home/apt` and `Private room` have the longest `minimum_nights` and most `Entire home/apt`s are clustering at higher prices. Let's try and compare between between listings that have minimum nights that reach a week or more and those that have less minimum nights than a week.
+
+```{r}
+# Label listings with minimum stays of a week or longer and those with otherwise
+listing_duration <- listings %>%
+  mutate(min_stay_duration = ifelse(minimum_nights >= 7, ">= week", "< week"))
+
+listing_duration_reviews <- listing_duration %>%
+  group_by(min_stay_duration) %>%
+  summarize(total_reviews = sum(number_of_reviews))
+
+ggplot(listing_duration_reviews, aes(x = min_stay_duration, y = total_reviews)) +
+  geom_col() +
+  ggtitle("Total no. of Reviews vs. Minimum Stay duration")
+
+#ggplot(listing_duration, aes(x = room_type, y = minimum_nights)) +
+#  geom_boxplot() +
+#  facet_wrap(~ stay_duration)
+```
+
+We notice that listings with a minimum stay duration of a week or more are less popular *assuming that a huge percentage of visitors* leave a review on both scenarios.
+
+## Host Profiles
+
+Since we joined multiple datasets, let's first confirm if the `host_id`s are truly unique across all tables.
+
+```{r}
+length(unique(listings$host_id))
+```
+
+The number of unique `host_id`s is less than the total no. of observations our combined dataset has which means duplicate `host_id`s exist across the different cities. Let's group the data by city first then by host_id to get a unique combination of hosts from their respective cities.
+
+
+```{r}
+# Get the top 10 hosts by no. of listings owned from the dataset
+host_leaderboard <- listings %>%
+  group_by(city, host_id) %>%
+  count(sort = TRUE)
+
+top_hosts <- head(host_leaderboard, 15)
+
+top_hosts
+```
+
+let's have a closer look at which city has the most top hosts
+
+```{r}
+top_hosts %>%
+  group_by(city) %>%
+  count(sort = TRUE)
+```
+
+We see that `Austin`, `Buenos Aires` and `Melbourne` are tied at the top as the cities with top hosts (as per number of listings they own/handle/manage). Let's confirm this by looking at a different metric, how much they make on their listings.
+
+```{r}
+# Join the top hosts with the original listings table
+listings_hosts <- listings %>%
+  inner_join(top_hosts, by = "host_id", suffix = c("_listings", "_top_hosts"))
+
+listings_hosts
+```
+
+Let's compute the top cities by amount of earnings
+
+```{r}
+listings_hosts %>%
+  group_by(city_listings) %>%
+  count(city_listings, wt = price_USD, sort = TRUE)
+```
+
+We see that the order has changed showing us that top hosts in `Austin`, `Cape Town` and `Melbourne` earn way more (in total) compared to other cities while top hosts in `Buenos Aires` don't earn as much. This also confirms the boxplots we created earlier on.
+
+Let's get the hosts that earn the most and try to detect any trends in their listings.
+
+```{r}
+# Get the top earning hosts
+host_leaderboard_earning <- listings_hosts %>%
+  group_by(host_id) %>%
+  count(host_id, wt = price_USD, sort = TRUE)
+
+top_earning_hosts <- head(host_leaderboard_earning, 10)
+
+top_earning_hosts
+```
+
+```{r}
+# Join the top earning hosts with the original dataset
+listings_top_earners <- listings %>%
+  inner_join(top_earning_hosts, by = "host_id")
+
+listings_top_earners
+```
+
+let's see the cities where these hosts have listings
+
+```{r}
+# Count the number of high earning cities
+top_earners_cities <- listings_top_earners %>%
+  group_by(city) %>%
+  count(sort = TRUE)
+
+# Plot the high earning cities
+ggplot(top_earners_cities, aes(x = city, y = n)) +
+  geom_col() +
+  ggtitle("No. of high earning listings per City")
+```
+
+Now we can see one of the trends, Most of the high earning hosts have their listings in `Austin` followed by `Melbourne`. Let's go deeper and inspect the type of listings in each of the cities.
+
+```{r}
+top_earners_cities_types <- listings_top_earners %>%
+  group_by(city, room_type) %>%
+  count(sort = TRUE)
+ggplot(top_earners_cities_types, aes(x = room_type, y = n)) +
+  geom_col() +
+  facet_wrap(~ city) +
+  ggtitle("No. of high earning listings per Type & City")
+```
+
+We've unconvered another trend. In all high earning cities for airbnb listings, the most prevalent `room_type` is the **Entire home/apt**. So we can safely say that top performing managers in terms of 💰 have multiple **Entire home/apt** in **Austin**.
+
