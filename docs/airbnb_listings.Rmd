@@ -9,9 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-![](img/header-Airbnbemoji.jpg)
-
-# Airbnb Listings
+![](../img/header-Airbnbemoji.jpg)
 
 This datasets consists of six original files with Airbnb rental listings of six cities: Austin, Bangkok, Buenos Aires, Cape Town, Istanbul, and Melbourne. The source of the data is [InsideAirbnb](http://insideairbnb.com). The data dictionary is as defined as follows:
 
@@ -42,12 +40,12 @@ This datasets consists of six original files with Airbnb rental listings of six 
 suppressPackageStartupMessages(library(tidyverse))
 
 # Load datasets
-austin <- read_csv("data/listings_austin.csv", show_col_types=FALSE)
-bangkok <- read_csv("data/listings_bangkok.csv", show_col_types=FALSE)
-buenos_aires <- read_csv("data/listings_buenos_aires.csv", show_col_types=FALSE)
-cape_town <- read_csv("data/listings_cape_town.csv", show_col_types=FALSE)
-istanbul <- read_csv("data/listings_istanbul.csv", show_col_types=FALSE)
-melbourne <- read_csv("data/listings_melbourne.csv", show_col_types=FALSE)
+austin <- read_csv("../data/listings_austin.csv", show_col_types=FALSE)
+bangkok <- read_csv("../data/listings_bangkok.csv", show_col_types=FALSE)
+buenos_aires <- read_csv("../data/listings_buenos_aires.csv", show_col_types=FALSE)
+cape_town <- read_csv("../data/listings_cape_town.csv", show_col_types=FALSE)
+istanbul <- read_csv("../data/listings_istanbul.csv", show_col_types=FALSE)
+melbourne <- read_csv("../data/listings_melbourne.csv", show_col_types=FALSE)
 ```
 
 ```{r}
@@ -71,6 +69,8 @@ listings <- bind_rows(
 glimpse(listings)
 ```
 We have a combined dataset containing `103,817` airbnb listings spanning `6` cities.
+
+## Listings' Price Distribution
 
 ```{r}
 # Plot the distribution of prices in austin
@@ -122,7 +122,8 @@ ggplot(listings, aes(x = price_USD, y = room_type)) +
   ggtitle('Price distribution by room type per city')
 ```
 
-We notice a particular pattern from the visualization above: 
+We notice a particular pattern from the visualization above:
+
 - **Buenos Aires** has the lowest price listings compared to other cities which is not what the initial visualization had shown us. 
 - We also notice that **Austin** and **Melbourne** have quite a number of pricy listings compared to the other cities. 
 - In general, **Entire home/apt** and **Private rooms** types of listings command higher prices.
