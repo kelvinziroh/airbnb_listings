@@ -24,6 +24,8 @@ The analysis was conducted using the **R programming language**, employing popul
 * Analyze correlations between listing features and popularity
 * Examine host trends for high-earning profiles
 
+> **NOTE**: For an in-depth look into the analysis, click [here](https://kelvinziroh.github.io/airbnb_listings/)
+
 ## 💡 Insights
 
 ### 1. 💰 Price Distribution & Currency Adjustment
